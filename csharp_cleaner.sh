@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+#set -euxo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -9,11 +9,30 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Function to get absolute path (cross-platform compatible)
+get_absolute_path() {
+    # Try realpath first (Linux/Unix with GNU coreutils)
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$1" 2>/dev/null && return 0
+    fi
+    
+    # Try readlink -f (Linux)
+    if command -v readlink >/dev/null 2>&1; then
+        readlink -f "$1" 2>/dev/null && return 0
+    fi
+    
+    # Fallback for macOS and other systems
+    local dir
+    dir=$(cd "$(dirname "$1")" >/dev/null 2>&1 && pwd -P)
+    echo "${dir%/}/${1##*/}"
+}
+
 # Function to check if directory is protected
 is_protected_directory() {
     local dir="$1"
+    # Get absolute path using our cross-platform function
     local abs_path
-    abs_path=$(realpath -m "$dir" 2>/dev/null || echo "$dir")
+    abs_path=$(get_absolute_path "$dir" 2>/dev/null || echo "$dir")
 
     # Directories that are protected ONLY on an exact path match (i.e., subdirectories are allowed).
     local exact_protected=(
@@ -99,7 +118,7 @@ if [ ! -d "$TARGET_DIR" ]; then
 fi
 
 # Get absolute path
-TARGET_DIR=$(realpath "$TARGET_DIR")
+TARGET_DIR=$(get_absolute_path "$TARGET_DIR")
 
 # Check if directory is protected
 if is_protected_directory "$TARGET_DIR"; then

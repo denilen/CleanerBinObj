@@ -2,6 +2,8 @@
 
 **English** | [Russian](README-RU.md)
 
+![Cleaner Screenshot](screen.png)
+
 A powerful command-line utility to clean up `bin` and `obj` directories from your .NET projects, freeing up disk space and maintaining a clean development environment.
 
 ## Features
