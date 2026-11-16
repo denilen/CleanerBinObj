@@ -41,7 +41,7 @@ A powerful command-line utility to clean up `bin` and `obj` directories from you
 
 2. Run the script:
    ```bash
-   /path/to/CleanerBinObj.sh
+   /path/to/CleanerBinObj.sh /path/to/your/project
    ```
 
    Or if you're in the script's directory:

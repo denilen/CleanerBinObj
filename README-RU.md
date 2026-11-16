@@ -46,7 +46,7 @@
 
    Или если вы находитесь в директории со скриптом:
    ```bash
-   ./CleanerBinObj.sh
+   ./CleanerBinObj.sh /path/to/your/project
    ```
 
 ## Пример вывода

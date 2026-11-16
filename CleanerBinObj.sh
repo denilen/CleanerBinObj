@@ -127,12 +127,10 @@ if is_protected_directory "$TARGET_DIR"; then
     exit 1
 fi
 
-# Check if directory is a C# repository
+# Check if directory is a C# repository (informational only — scanning proceeds regardless)
 if ! is_csharp_repository "$TARGET_DIR"; then
-    echo -e "${RED}Error: Directory '$TARGET_DIR' does not appear to be a C# repository${NC}"
-    echo -e "${YELLOW}No .sln or .csproj files found in the directory or its immediate subdirectories.${NC}"
-    echo -e "${YELLOW}Please ensure you're running this script in a C# project directory.${NC}"
-    exit 1
+    echo -e "${YELLOW}Warning: No .sln or .csproj files found in '$TARGET_DIR' or its subdirectories.${NC}"
+    echo -e "${YELLOW}Proceeding anyway to scan for bin, obj, and node_modules directories.${NC}"
 fi
 
 echo -e "${GREEN} Target directory is safe to clean${NC}"
@@ -144,11 +142,15 @@ START_TIME=$(date +%s)
 # don't delete mktemp! Problem inside while after pipe. Changing variable TEMP_SIZE_FILE doesn't change in main process!
 TEMP_SIZE_FILE=$(mktemp)
 
-echo -e "Starting search and removal of ${CYAN}bin${NC} and ${CYAN}obj${NC} directories in: ${CYAN}$TARGET_DIR${NC}"
+echo -e "Starting search and removal of ${CYAN}bin${NC}, ${CYAN}obj${NC} and ${CYAN}node_modules${NC} directories in: ${CYAN}$TARGET_DIR${NC}"
 
 # Function to format size
 format_size() {
-    local size=$1
+    local size=${1:-0}
+    # Guard against empty or non-numeric input
+    if [[ ! "$size" =~ ^[0-9]+$ ]]; then
+        size=0
+    fi
     if [ "$size" -ge 1073741824 ]; then
         awk -v s="$size" 'BEGIN{printf "%.2f GB\n", s/1073741824}'
     elif [ "$size" -ge 1048576 ]; then
@@ -161,8 +163,10 @@ format_size() {
 }
 
 # Search and remove directories
-find "$TARGET_DIR" \( -path "*/node_modules/*" -o -path "*/.git/*" \) -prune -o \
-       -type d \( -name "bin" -o -name "obj" \) -print0 |
+# Prune .git to avoid descending into git internals.
+# bin, obj and node_modules are matched by name and listed for removal (deletion itself is commented out below).
+find "$TARGET_DIR" -path "*/.git/*" -prune -o \
+       -type d \( -name "bin" -o -name "obj" -o -name "node_modules" \) -print0 |
 while IFS= read -r -d '' dir; do
     if [ -d "$dir" ]; then
         # Clean up path from extra spaces
@@ -187,20 +191,20 @@ while IFS= read -r -d '' dir; do
         # Display removal info
         dir_name=$(basename -- "$dir")
         dir_path=$(dirname -- "$dir")
-        [[ "$dir_path" == "." ]] && full_path="" || full_path="${dir_path#./}/"
+        [[ "$dir_path" == "." ]] && full_path="" || full_path="${dir_path#./}"
         echo -e "${RED}Removing:${NC} ${full_path:+$full_path/}${CYAN}${dir_name}${NC} ${YELLOW}(${size_display})${NC}"
 
         # Remove directory
         rm -rf -- "$dir" 2>/dev/null
+        #echo "remove $dir"
     fi
 done
 
 # Calculate total size from temp file
+TOTAL_SIZE=0
 if [ -f "$TEMP_SIZE_FILE" ]; then
-    TOTAL_SIZE=$(awk '{sum += $1} END {print sum}' "$TEMP_SIZE_FILE")
+    TOTAL_SIZE=$(awk '{sum += $1} END {print sum+0}' "$TEMP_SIZE_FILE")
     rm -f "$TEMP_SIZE_FILE"
-else
-    TOTAL_SIZE=0
 fi
 
 # Calculate execution time
